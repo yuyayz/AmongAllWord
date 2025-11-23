@@ -191,22 +191,31 @@ fetch("words.json")
     console.error("JSON読み込みエラー:", error);
     alert("データの読み込みに失敗しました。words.json を確認してください。");
   });
-
 // ====== 音再生関連（要件5,6 スマホ対策） ======
 let audioUnlocked = false;
-// 短い効果音ファイルを public 配下などに配置してください
-// 例: alert.mp3
+
+// 準備終了やアラート用
 let alertSound = new Audio("alert.mp3");
 alertSound.preload = "none";
+
+// プレゼン終了用（別ファイル end.mp3 を用意）
+let endSound = new Audio("end.mp3");
+endSound.preload = "none";
 
 function unlockAudio() {
   if (audioUnlocked) return;
   // 無音再生→停止→巻き戻しで「ユーザー操作による再生」を経験させる
   alertSound.muted = true;
-  alertSound.play().then(() => {
+  endSound.muted = true;
+  Promise.all([alertSound.play(), endSound.play()]).then(() => {
     alertSound.pause();
     alertSound.currentTime = 0;
     alertSound.muted = false;
+
+    endSound.pause();
+    endSound.currentTime = 0;
+    endSound.muted = false;
+
     audioUnlocked = true;
   }).catch(err => {
     console.log("音声解禁失敗:", err);
@@ -221,6 +230,15 @@ function playAlert() {
     // 再生失敗時は握りつぶす
   });
 }
+
+function playEnd() {
+  if (!audioUnlocked) return;
+  endSound.currentTime = 0;
+  endSound.play().catch(() => {
+    // 再生失敗時は握りつぶす
+  });
+}
+
 </script>
 <script>
 let timerDisplay = document.getElementById("timer");
@@ -446,3 +464,4 @@ function goToTop() {
 </script>
 </body>
 </html>
+
