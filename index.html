@@ -204,23 +204,30 @@ endSound.preload = "none";
 
 function unlockAudio() {
   if (audioUnlocked) return;
-  // 無音再生→停止→巻き戻しで「ユーザー操作による再生」を経験させる
-  alertSound.muted = true;
-  endSound.muted = true;
-  Promise.all([alertSound.play(), endSound.play()]).then(() => {
-    alertSound.pause();
-    alertSound.currentTime = 0;
-    alertSound.muted = false;
 
-    endSound.pause();
-    endSound.currentTime = 0;
-    endSound.muted = false;
+  const unlockOne = async (audio) => {
+    try {
+      audio.muted = true;
+      // 読み込みを明示（preload="none" でも load() はできる）
+      try { audio.load(); } catch {}
+      await audio.play();
+      audio.pause();
+      audio.currentTime = 0;
+      audio.muted = false;
+      return true;
+    } catch (e) {
+      console.log("解禁失敗:", e);
+      return false;
+    }
+  };
 
-    audioUnlocked = true;
-  }).catch(err => {
-    console.log("音声解禁失敗:", err);
-    // 失敗しても次のユーザー操作で再試行されるので致命的ではない
-  });
+  (async () => {
+    const a1 = await unlockOne(alertSound);
+    const a2 = await unlockOne(endSound);
+    if (a1 && a2) {
+      audioUnlocked = true;
+    }
+  })();
 }
 
 function playAlert() {
@@ -466,5 +473,6 @@ function goToTop() {
 </script>
 </body>
 </html>
+
 
 
