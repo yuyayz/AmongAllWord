@@ -122,14 +122,23 @@
 
   <div id="cardArea"></div>
   <div id="timer"></div>
+
+  <!-- Stop はプレゼン中のみ表示 -->
   <button id="stopBtn" style="display:none;" disabled>Stop</button>
+
+  <!-- プレゼン開始は準備中のみ表示 -->
   <button id="startPresentationBtn" style="display:none;" disabled>プレゼン開始</button>
 
+  <!-- 再カウントはカード3枚／準備／プレゼンいずれでも表示（要件1） -->
+  <button id="recountBtn" style="display:none;">再カウント</button>
+
+  <!-- カード3枚画面やプレゼン中の操作（要件2の重複対策：上側は非表示に統一） -->
   <div id="presentationControls" style="display:none;">
     <button onclick="goBack()">戻る</button>
     <button onclick="nextChallenge()">次のチャレンジ</button>
   </div>
 
+  <!-- ヒント詳細（カードクリック時）—下側のみボタン表示（要件2） -->
   <div id="detailArea" style="display:none;">
     <div id="detailCard"></div>
     <button onclick="goBack()">戻る</button>
@@ -146,12 +155,14 @@ let data = {};
 let isReady = false;
 const examDate = new Date("2025-12-14");
 
+// 試験までのカウントダウン表示
 function updateCountdown() {
   const today = new Date();
   const diff = Math.ceil((examDate - today) / (1000 * 60 * 60 * 24));
   document.getElementById("countdown").textContent = `本番(12/14)まであと ${diff} 日`;
 }
 updateCountdown();
+setInterval(updateCountdown, 60 * 60 * 1000); // 1時間ごとに更新
 
 function shuffle(array) {
   for (let i = array.length - 1; i > 0; i--) {
@@ -169,55 +180,130 @@ fetch("words.json")
   .then(json => {
     data = json;
     isReady = true;
-    document.getElementById("startBtn").disabled = false;
-    document.getElementById("startBtn").addEventListener("click", startChallenge);
+    const startBtn = document.getElementById("startBtn");
+    startBtn.disabled = false;
+    startBtn.addEventListener("click", () => {
+      unlockAudio(); // 最初のユーザー操作で音声再生を解禁（スマホ対策）
+      startChallenge();
+    });
   })
   .catch(error => {
     console.error("JSON読み込みエラー:", error);
     alert("データの読み込みに失敗しました。words.json を確認してください。");
   });
 
+// ====== 音再生関連（要件5,6 スマホ対策） ======
+let audioUnlocked = false;
+// 短い効果音ファイルを public 配下などに配置してください
+// 例: alert.mp3
+let alertSound = new Audio("alert.mp3");
+alertSound.preload = "none";
+
+function unlockAudio() {
+  if (audioUnlocked) return;
+  // 無音再生→停止→巻き戻しで「ユーザー操作による再生」を経験させる
+  alertSound.muted = true;
+  alertSound.play().then(() => {
+    alertSound.pause();
+    alertSound.currentTime = 0;
+    alertSound.muted = false;
+    audioUnlocked = true;
+  }).catch(err => {
+    console.log("音声解禁失敗:", err);
+    // 失敗しても次のユーザー操作で再試行されるので致命的ではない
+  });
+}
+
+function playAlert() {
+  if (!audioUnlocked) return;
+  alertSound.currentTime = 0;
+  alertSound.play().catch(() => {
+    // 再生失敗時は握りつぶす
+  });
+}
+</script>
+<script>
 let timerDisplay = document.getElementById("timer");
 let stopBtn = document.getElementById("stopBtn");
 let startPresentationBtn = document.getElementById("startPresentationBtn");
-let timer, seconds = 0;
+let recountBtn = document.getElementById("recountBtn");
 
-// 準備タイマー（30秒）
+let timer = null;
+let seconds = 0;
+let prepAlertTimeout = null;
+let presAlertTimeout = null;
+
+// 画面状態の補助
+function showTopOnly() {
+  document.getElementById("topArea").style.display = "block";
+  document.getElementById("cardArea").style.display = "none";
+  document.getElementById("detailArea").style.display = "none";
+  document.getElementById("presentationControls").style.display = "none";
+  startPresentationBtn.style.display = "none";
+  stopBtn.style.display = "none";
+  recountBtn.style.display = "none";
+  timerDisplay.textContent = "";
+}
+
+// 準備タイマー（30秒、要件5でアラート音）
 function startTimer1() {
+  // 既存タイマーのクリア
+  clearInterval(timer);
+  if (prepAlertTimeout) clearTimeout(prepAlertTimeout);
+  if (presAlertTimeout) clearTimeout(presAlertTimeout);
+
   let countdown = 30;
   timerDisplay.textContent = `準備時間: ${countdown}s`;
   timerDisplay.style.color = "#333";
   timerDisplay.style.fontWeight = "normal";
-  stopBtn.style.display = "none";
 
-  // プレゼン開始ボタンを表示＆有効化
+  // ボタン表示制御
+  stopBtn.style.display = "none";
+  stopBtn.disabled = true;
+
   startPresentationBtn.style.display = "inline-block";
   startPresentationBtn.disabled = false;
+
+  recountBtn.style.display = "inline-block";
+
+  // 要件5：準備開始から30秒後にアラート音
+  prepAlertTimeout = setTimeout(() => {
+    playAlert();
+  }, 30000);
 
   timer = setInterval(() => {
     countdown--;
     timerDisplay.textContent = `準備時間: ${countdown}s`;
     if (countdown <= 0) {
       clearInterval(timer);
-      startTimer2();
+      startTimer2(); // 自動でプレゼン開始（要件6）
     }
   }, 1000);
 }
 
-// プレゼンタイマー（カウントアップ）
+// プレゼンタイマー（カウントアップ、要件6で120秒後アラート）
 function startTimer2() {
+  clearInterval(timer);
+  if (prepAlertTimeout) clearTimeout(prepAlertTimeout);
+  if (presAlertTimeout) clearTimeout(presAlertTimeout);
+
   seconds = 0;
   stopBtn.disabled = false;
   stopBtn.style.display = "inline-block";
 
-  // プレゼン開始ボタンを非表示
   startPresentationBtn.style.display = "none";
+  recountBtn.style.display = "inline-block";
 
-  // プレゼン中の操作ボタンを表示
+  // プレゼン中の操作ボタン（重複防止のため下部のみ使用）
   document.getElementById("presentationControls").style.display = "block";
 
   timerDisplay.style.color = "#333";
   timerDisplay.style.fontWeight = "normal";
+
+  // 要件6：プレゼン開始から120秒後にアラート音
+  presAlertTimeout = setTimeout(() => {
+    playAlert();
+  }, 120000);
 
   timer = setInterval(() => {
     seconds++;
@@ -229,17 +315,37 @@ function startTimer2() {
   }, 1000);
 }
 
-// Stopボタン
+// Stopボタン（要件3：Stop後は準備画面に戻して次に進める）
 stopBtn.addEventListener("click", () => {
   clearInterval(timer);
+  if (prepAlertTimeout) clearTimeout(prepAlertTimeout);
+  if (presAlertTimeout) clearTimeout(presAlertTimeout);
+
   timerDisplay.textContent += " （停止）";
   stopBtn.disabled = true;
+
+  // Stop後は最初のカードが表示された画面（準備時間タイマー作動）へ
+  startTimer1();
+
+  // 「プレゼン開始」「次のチャレンジ」を準備画面で再表示
+  startPresentationBtn.style.display = "inline-block";
+  startPresentationBtn.disabled = false;
+  document.getElementById("presentationControls").style.display = "none";
 });
 
-// プレゼン開始ボタン（途中切り替え用）
+// プレゼン開始ボタン（準備→プレゼン切替）
 startPresentationBtn.addEventListener("click", () => {
+  unlockAudio(); // 念のため（スマホ）
   clearInterval(timer);   // 準備タイマーを止める
   startTimer2();          // プレゼンタイマー開始
+});
+
+// 再カウント（要件1：いつでも準備時間カウントダウンからスタート）
+recountBtn.addEventListener("click", () => {
+  clearInterval(timer);
+  if (prepAlertTimeout) clearTimeout(prepAlertTimeout);
+  if (presAlertTimeout) clearTimeout(presAlertTimeout);
+  startTimer1();
 });
 </script>
 <script>
@@ -259,7 +365,7 @@ function startChallenge() {
   const selected = shuffled.slice(0, 3);
 
   const html = selected.map(card => `
-    <div class="card" onclick="showDetail('${card.word.replace(/'/g, "\\'")}')">
+    <div class="card" onclick="unlockAudio(); showDetail('${card.word.replace(/'/g, "\\'")}')">
       <div class="word">${card.word}</div>
     </div>
   `).join("");
@@ -268,9 +374,15 @@ function startChallenge() {
   document.getElementById("cardArea").style.display = "block";
   document.getElementById("topArea").style.display = "none";
   document.getElementById("detailArea").style.display = "none";
-  document.getElementById("presentationControls").style.display = "block";
 
-  startTimer1(); // 準備タイマー開始
+  // 要件4：トップ画面直後の「戻る」は不要 → presentationControls はここでは出さない
+  document.getElementById("presentationControls").style.display = "none";
+
+  // 準備タイマー開始
+  startTimer1();
+
+  // 再カウントボタンはカード3枚画面でも見せる
+  recountBtn.style.display = "inline-block";
 }
 
 function showDetail(word) {
@@ -285,37 +397,52 @@ function showDetail(word) {
     </div>
   `;
   document.getElementById("detailCard").innerHTML = html;
+
+  // 3枚カードを隠して詳細カードを表示
   document.getElementById("cardArea").style.display = "none";
   document.getElementById("detailArea").style.display = "block";
+
+  // 要件2：ヒントカード表示時は上側の「戻る」「次のチャレンジ」（presentationControls）は非表示にする
   document.getElementById("presentationControls").style.display = "none";
 }
 
 function goBack() {
+  // 詳細カードを閉じて3枚カード画面へ
   document.getElementById("detailArea").style.display = "none";
   document.getElementById("cardArea").style.display = "block";
+
+  // 準備中は上側のコントロールは出さない（要件2/4の整合性）
   document.getElementById("presentationControls").style.display = "none";
 }
 
 function nextChallenge() {
-  clearInterval(timer); // ← これが重要！
+  // タイマーのクリア
+  clearInterval(timer);
+  if (prepAlertTimeout) clearTimeout(prepAlertTimeout);
+  if (presAlertTimeout) clearTimeout(presAlertTimeout);
+
+  // 画面リセット
   document.getElementById("detailArea").style.display = "none";
   document.getElementById("cardArea").innerHTML = "";
   document.getElementById("cardArea").style.display = "block";
+
+  // 上側コントロールは重複回避のため非表示
   document.getElementById("presentationControls").style.display = "none";
-  startChallenge(); // ← 新しいカードとタイマーを表示
+
+  // 新しいカードと準備タイマーを開始
+  startChallenge();
 }
 
+// 必要ならトップに戻す（未使用だが残しておく）
 function goToTop() {
-  clearInterval(timer); // ← 念のため追加
+  clearInterval(timer);
+  if (prepAlertTimeout) clearTimeout(prepAlertTimeout);
+  if (presAlertTimeout) clearTimeout(presAlertTimeout);
+
   document.getElementById("cardArea").innerHTML = "";
   document.getElementById("detailCard").innerHTML = "";
-  document.getElementById("topArea").style.display = "block";
-  document.getElementById("cardArea").style.display = "none";
-  document.getElementById("detailArea").style.display = "none";
-  document.getElementById("presentationControls").style.display = "none";
+  showTopOnly();
 }
 </script>
 </body>
 </html>
-
-
