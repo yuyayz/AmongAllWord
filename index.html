@@ -333,7 +333,7 @@ function startTimer2() {
   }, 1000);
 }
 
-// Stopボタン（要件3：Stop後は準備画面に戻して次に進める）
+// Stopボタン（中断のみ。準備に戻すのはユーザー操作で）
 stopBtn.addEventListener("click", () => {
   clearInterval(timer);
   if (prepAlertTimeout) clearTimeout(prepAlertTimeout);
@@ -342,14 +342,16 @@ stopBtn.addEventListener("click", () => {
   timerDisplay.textContent += " （停止）";
   stopBtn.disabled = true;
 
-  // Stop後は最初のカードが表示された画面（準備時間タイマー作動）へ
-  startTimer1();
+  // ← startTimer1() は呼ばない（自動で準備時間に戻さない）
 
-  // 「プレゼン開始」「次のチャレンジ」を準備画面で再表示
+  // 再開できるUIだけ復帰（準備画面のプレゼン開始ボタンを表示）
   startPresentationBtn.style.display = "inline-block";
   startPresentationBtn.disabled = false;
+
+  // プレゼン中の上部操作は非表示のまま
   document.getElementById("presentationControls").style.display = "none";
 });
+
 
 // プレゼン開始ボタン（準備→プレゼン切替）
 startPresentationBtn.addEventListener("click", () => {
@@ -464,4 +466,5 @@ function goToTop() {
 </script>
 </body>
 </html>
+
 
