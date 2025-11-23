@@ -348,14 +348,10 @@ stopBtn.addEventListener("click", () => {
 
   timerDisplay.textContent += " （停止）";
   stopBtn.disabled = true;
+  stopBtn.style.display = "none"; // ← これが追加された！
 
-  // ← startTimer1() は呼ばない（自動で準備時間に戻さない）
-
-  // 再開できるUIだけ復帰（準備画面のプレゼン開始ボタンを表示）
   startPresentationBtn.style.display = "inline-block";
   startPresentationBtn.disabled = false;
-
-  // プレゼン中の上部操作は非表示のまま
   document.getElementById("presentationControls").style.display = "none";
 });
 
@@ -473,6 +469,7 @@ function goToTop() {
 </script>
 </body>
 </html>
+
 
 
 
