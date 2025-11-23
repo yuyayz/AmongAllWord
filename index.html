@@ -194,31 +194,9 @@ fetch("words.json")
 
 
 function unlockAudio() {
-  if (audioUnlocked) return;
-
-  const unlockOne = async (audio) => {
-    try {
-      audio.muted = true;
-      // 読み込みを明示（preload="none" でも load() はできる）
-      try { audio.load(); } catch {}
-      await audio.play();
-      audio.pause();
-      audio.currentTime = 0;
-      audio.muted = false;
-      return true;
-    } catch (e) {
-      console.log("解禁失敗:", e);
-      return false;
-    }
-  };
-
-  (async () => {
-    const a1 = await unlockOne(alertSound);
-    const a2 = await unlockOne(endSound);
-    if (a1 && a2) {
-      audioUnlocked = true;
-    }
-  })();
+  // Web Audio API ではファイル解禁不要なので、最初のクリックでフラグだけ立てる
+  audioUnlocked = true;
+  console.log("✅ 音声解禁成功");
 }
 
 function playAlert() {
@@ -467,6 +445,7 @@ function goToTop() {
 </script>
 </body>
 </html>
+
 
 
 
