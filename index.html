@@ -191,16 +191,7 @@ fetch("words.json")
     console.error("JSON読み込みエラー:", error);
     alert("データの読み込みに失敗しました。words.json を確認してください。");
   });
-// ====== 音再生関連（要件5,6 スマホ対策） ======
-let audioUnlocked = false;
 
-// 準備終了やアラート用
-let alertSound = new Audio("alert.mp3");
-alertSound.preload = "none";
-
-// プレゼン終了用（別ファイル end.mp3 を用意）
-let endSound = new Audio("end.mp3");
-endSound.preload = "none";
 
 function unlockAudio() {
   if (audioUnlocked) return;
@@ -232,19 +223,26 @@ function unlockAudio() {
 
 function playAlert() {
   if (!audioUnlocked) return;
-  alertSound.currentTime = 0;
-  alertSound.play().catch(() => {
-    // 再生失敗時は握りつぶす
-  });
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const osc = ctx.createOscillator();
+  osc.type = "sine";          // 波形（サイン波）
+  osc.frequency.value = 880;  // 周波数（高めの音）
+  osc.connect(ctx.destination);
+  osc.start();
+  osc.stop(ctx.currentTime + 0.5); // 0.5秒で停止
 }
 
 function playEnd() {
   if (!audioUnlocked) return;
-  endSound.currentTime = 0;
-  endSound.play().catch(() => {
-    // 再生失敗時は握りつぶす
-  });
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const osc = ctx.createOscillator();
+  osc.type = "square";        // 波形（スクエア波）
+  osc.frequency.value = 440;  // 周波数（低めの音）
+  osc.connect(ctx.destination);
+  osc.start();
+  osc.stop(ctx.currentTime + 0.8); // 0.8秒で停止
 }
+
 
 </script>
 <script>
@@ -469,6 +467,7 @@ function goToTop() {
 </script>
 </body>
 </html>
+
 
 
 
